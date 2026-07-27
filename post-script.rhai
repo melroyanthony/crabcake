@@ -1,6 +1,10 @@
 // The template's own README stays behind on GitHub; the project gets its own.
 file::rename("README.project.md", "README.md");
 
+// The environment file is named .env.example in the template because SQLx's compile-time
+// macros read any .env they find in a parent directory, and this one is full of Liquid.
+file::rename(".env.example", ".env");
+
 let name = variable::get("project-name");
 
 print("");

@@ -14,7 +14,7 @@ ignore = ["README.md", "AGENTS.md", "LICENSE", ".template", "openapi.json"]
 # named `frontend`, rather than being templated, which keeps this repository a real project
 # that compiles and tests on its own instead of a pile of unparseable placeholders.
 include = [
-    ".env",
+    ".env.example",
     "README.project.md",
     "compose.yml",
     "compose.override.yml",
