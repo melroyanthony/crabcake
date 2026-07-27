@@ -1,3 +1,4 @@
+use secrecy::ExposeSecret;
 use sqlx::PgPool;
 
 use crate::{AppResult, Config, auth::password, repo};
@@ -12,7 +13,7 @@ pub async fn ensure_first_superuser(pool: &PgPool, config: &Config) -> AppResult
         return Ok(());
     }
 
-    let hashed = password::hash(&config.first_superuser_password)?;
+    let hashed = password::hash(config.first_superuser_password.expose_secret())?;
     repo::users::create(pool, &config.first_superuser, &hashed, None, true).await?;
 
     tracing::info!(email = %config.first_superuser, "created the first superuser");

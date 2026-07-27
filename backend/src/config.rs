@@ -1,9 +1,7 @@
 use std::net::SocketAddr;
 
-use figment::{
-    Figment,
-    providers::{Env, Serialized},
-};
+use figment::{Figment, providers::Env};
+use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
 
 /// The value the template ships for every secret. Refusing to run with it outside local
@@ -24,7 +22,10 @@ impl Environment {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// Every secret is a [`SecretString`], so `Debug` prints `[REDACTED]` and reading the real
+/// value takes an explicit `expose_secret()`. That turns "did we ever log the config?" from a
+/// question you have to reason about into one you can grep for.
+#[derive(Debug, Deserialize)]
 pub struct Config {
     #[serde(default = "defaults::environment")]
     pub environment: Environment,
@@ -41,14 +42,14 @@ pub struct Config {
     #[serde(default)]
     pub cors_origins: String,
 
-    pub secret_key: String,
+    pub secret_key: SecretString,
     #[serde(default = "defaults::access_token_expire_minutes")]
     pub access_token_expire_minutes: i64,
     #[serde(default = "defaults::refresh_token_expire_days")]
     pub refresh_token_expire_days: i64,
 
     pub first_superuser: String,
-    pub first_superuser_password: String,
+    pub first_superuser_password: SecretString,
 
     #[serde(default = "defaults::request_timeout_seconds")]
     pub request_timeout_seconds: u64,
@@ -59,7 +60,7 @@ pub struct Config {
 impl Config {
     /// Reads configuration from the environment, `.env` having already been loaded.
     pub fn from_env() -> Result<Self, ConfigError> {
-        let config: Self = Figment::from(Serialized::defaults(figment::value::Dict::new()))
+        let config: Self = Figment::new()
             .merge(Env::raw())
             .extract()
             .map_err(Box::new)?;
@@ -88,7 +89,7 @@ impl Config {
             ("FIRST_SUPERUSER_PASSWORD", &self.first_superuser_password),
         ]
         .into_iter()
-        .filter(|(_, value)| value.as_str() == PLACEHOLDER_SECRET)
+        .filter(|(_, value)| value.expose_secret() == PLACEHOLDER_SECRET)
         .map(|(name, _)| name)
         .collect();
 
@@ -96,6 +97,29 @@ impl Config {
             Ok(())
         } else {
             Err(ConfigError::PlaceholderSecrets(unchanged.join(", ")))
+        }
+    }
+}
+
+#[cfg(test)]
+impl Config {
+    /// A valid configuration for tests to start from and then adjust. Living here rather than
+    /// in each test module keeps one definition to update when a field is added.
+    pub fn for_tests() -> Self {
+        Self {
+            environment: Environment::Local,
+            project_name: "Test".to_owned(),
+            bind_address: defaults::bind_address(),
+            database_url: "postgres://localhost/test".to_owned(),
+            frontend_host: defaults::frontend_host(),
+            cors_origins: String::new(),
+            secret_key: SecretString::from("a-test-secret"),
+            access_token_expire_minutes: 30,
+            refresh_token_expire_days: 30,
+            first_superuser: "admin@example.com".to_owned(),
+            first_superuser_password: SecretString::from("hunter2"),
+            request_timeout_seconds: 30,
+            body_limit_bytes: 1024,
         }
     }
 }
@@ -155,43 +179,50 @@ mod defaults {
 mod tests {
     use super::*;
 
-    fn config(environment: Environment, secret: &str) -> Config {
+    fn with_placeholder_secret(environment: Environment) -> Config {
         Config {
             environment,
-            project_name: "Test".to_owned(),
-            bind_address: defaults::bind_address(),
-            database_url: "postgres://localhost/test".to_owned(),
-            frontend_host: defaults::frontend_host(),
-            cors_origins: "http://localhost:3000, ,http://localhost:8000".to_owned(),
-            secret_key: secret.to_owned(),
-            access_token_expire_minutes: 30,
-            refresh_token_expire_days: 30,
-            first_superuser: "admin@example.com".to_owned(),
-            first_superuser_password: "hunter2".to_owned(),
-            request_timeout_seconds: 30,
-            body_limit_bytes: 1024,
+            secret_key: SecretString::from(PLACEHOLDER_SECRET),
+            ..Config::for_tests()
         }
     }
 
     #[test]
     fn placeholder_secrets_are_allowed_locally() {
-        let config = config(Environment::Local, PLACEHOLDER_SECRET);
+        let config = with_placeholder_secret(Environment::Local);
         assert!(config.guard_against_placeholder_secrets().is_ok());
     }
 
     #[test]
     fn placeholder_secrets_are_rejected_in_production() {
-        let config = config(Environment::Production, PLACEHOLDER_SECRET);
+        let config = with_placeholder_secret(Environment::Production);
         let error = config.guard_against_placeholder_secrets().unwrap_err();
         assert!(error.to_string().contains("SECRET_KEY"));
     }
 
     #[test]
     fn cors_origins_ignores_blanks_and_whitespace() {
-        let config = config(Environment::Local, "real-secret");
+        let config = Config {
+            cors_origins: "http://localhost:3000, ,http://localhost:8000".to_owned(),
+            ..Config::for_tests()
+        };
         assert_eq!(
             config.cors_origins(),
             ["http://localhost:3000", "http://localhost:8000"]
         );
+    }
+
+    #[test]
+    fn debug_output_never_contains_a_secret() {
+        let config = Config {
+            secret_key: SecretString::from("super-secret-signing-key"),
+            first_superuser_password: SecretString::from("super-secret-password"),
+            ..Config::for_tests()
+        };
+
+        let rendered = format!("{config:?}");
+        assert!(!rendered.contains("super-secret-signing-key"));
+        assert!(!rendered.contains("super-secret-password"));
+        assert!(rendered.contains("REDACTED"));
     }
 }

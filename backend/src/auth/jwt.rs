@@ -1,4 +1,5 @@
 use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation};
+use secrecy::ExposeSecret;
 use serde::{Deserialize, Serialize};
 use time::{Duration, OffsetDateTime};
 use uuid::Uuid;
@@ -28,7 +29,7 @@ pub fn issue_access_token(config: &Config, user_id: Uuid) -> AppResult<String> {
     jsonwebtoken::encode(
         &Header::new(Algorithm::HS256),
         &claims,
-        &EncodingKey::from_secret(config.secret_key.as_bytes()),
+        &EncodingKey::from_secret(config.secret_key.expose_secret().as_bytes()),
     )
     .map_err(|error| AppError::Unexpected(anyhow::anyhow!("could not sign token: {error}")))
 }
@@ -41,7 +42,7 @@ pub fn decode_access_token(config: &Config, token: &str) -> AppResult<Claims> {
 
     jsonwebtoken::decode::<Claims>(
         token,
-        &DecodingKey::from_secret(config.secret_key.as_bytes()),
+        &DecodingKey::from_secret(config.secret_key.expose_secret().as_bytes()),
         &validation,
     )
     .map(|data| data.claims)
@@ -50,24 +51,15 @@ pub fn decode_access_token(config: &Config, token: &str) -> AppResult<Claims> {
 
 #[cfg(test)]
 mod tests {
+    use secrecy::SecretString;
+
     use super::*;
-    use crate::config::Environment;
 
     fn config(secret: &str, minutes: i64) -> Config {
         Config {
-            environment: Environment::Local,
-            project_name: "Test".to_owned(),
-            bind_address: ([127, 0, 0, 1], 8000).into(),
-            database_url: "postgres://localhost/test".to_owned(),
-            frontend_host: "http://localhost:3000".to_owned(),
-            cors_origins: String::new(),
-            secret_key: secret.to_owned(),
+            secret_key: SecretString::from(secret.to_owned()),
             access_token_expire_minutes: minutes,
-            refresh_token_expire_days: 30,
-            first_superuser: "admin@example.com".to_owned(),
-            first_superuser_password: "hunter2".to_owned(),
-            request_timeout_seconds: 30,
-            body_limit_bytes: 1024,
+            ..Config::for_tests()
         }
     }
 

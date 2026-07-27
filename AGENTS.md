@@ -79,6 +79,25 @@ just migrate     # apply database migrations
   afterwards or CI and Docker builds will fail on the stale offline query cache.
 - **Comments** explain constraints and intent, never what the next line does.
 
+## Dependencies
+
+Every dependency added here is inherited by every project generated from this template, and
+cold compile time is a new user's first impression. A crate earns its place by removing a
+real problem, not by being interesting.
+
+- **Secrets are `secrecy::SecretString`**, never `String`. `Config` derives `Debug` and lives
+  inside `AppState`, so a plain `String` secret is one `tracing::error!(?state)` or one panic
+  away from being in the logs. `expose_secret()` makes every real use greppable.
+- **Validation is [`validator`](https://github.com/Keats/validator)**, chosen over `garde`
+  for ecosystem support, including utoipa.
+- **Linting and formatting TypeScript is Biome**, not ESLint, because `typescript-eslint`
+  does not support TypeScript 7.
+
+Considered and deliberately not used: `tonic` and `prost` (no gRPC here), `tokio-tungstenite`
+(axum has WebSockets built in), `moka` (no measured hot path to cache), `tokio-console`
+(requires `RUSTFLAGS="--cfg tokio_unstable"` across the whole build, including the Docker
+image).
+
 ## Commit messages
 
 Conventional Commits with a leading gitmoji, in the style of tiangolo's repositories:
