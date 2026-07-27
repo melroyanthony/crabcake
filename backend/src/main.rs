@@ -1,5 +1,5 @@
 use anyhow::Context;
-use app::{AppState, Config, api, db, telemetry};
+use app::{AppState, Config, api, bootstrap, db, telemetry};
 use tokio::{net::TcpListener, signal};
 
 #[tokio::main]
@@ -11,6 +11,7 @@ async fn main() -> anyhow::Result<()> {
 
     let pool = db::connect(&config).await?;
     db::migrate(&pool).await?;
+    bootstrap::ensure_first_superuser(&pool, &config).await?;
 
     let address = config.bind_address;
     let state = AppState::new(config, pool);
