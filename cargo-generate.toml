@@ -9,15 +9,16 @@ ignore = ["README.md", "AGENTS.md", "LICENSE", ".template", "openapi.json"]
 # Only these files are processed by the Liquid engine. Everything else is copied verbatim,
 # which is what keeps `{{ ... }}` in TSX, `${{ ... }}` in workflows and `{{ ... }}` in the
 # justfile from being eaten by the template engine.
+#
+# Deliberately short. The Rust crate is always named `app` and the frontend package is always
+# named `frontend`, rather than being templated, which keeps this repository a real project
+# that compiles and tests on its own instead of a pile of unparseable placeholders.
 include = [
     ".env",
     "README.project.md",
-    "Cargo.toml",
-    "backend/Cargo.toml",
     "compose.yml",
     "compose.override.yml",
     "compose.traefik.yml",
-    "frontend/package.json",
 ]
 
 [hooks]
