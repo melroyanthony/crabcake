@@ -1,0 +1,53 @@
+[template]
+cargo_generate_version = ">=0.23.0"
+
+# Meta files that belong to the template itself and must not land in a generated project.
+# The hook scripts are deliberately absent: cargo-generate removes them from the output on
+# its own, and listing them here would delete them before the post hook could run.
+ignore = ["README.md", "AGENTS.md", "LICENSE", ".template", "openapi.json"]
+
+# Only these files are processed by the Liquid engine. Everything else is copied verbatim,
+# which is what keeps `{{ ... }}` in TSX, `${{ ... }}` in workflows and `{{ ... }}` in the
+# justfile from being eaten by the template engine.
+include = [
+    ".env",
+    "README.project.md",
+    "Cargo.toml",
+    "backend/Cargo.toml",
+    "compose.yml",
+    "compose.override.yml",
+    "compose.traefik.yml",
+    "frontend/package.json",
+]
+
+[hooks]
+pre = ["pre-script.rhai"]
+post = ["post-script.rhai"]
+
+[placeholders]
+project_title = { type = "string", prompt = "Human-readable project name, shown to API users", default = "Crabcake App" }
+domain = { type = "string", prompt = "Production domain (used for Traefik routing and CORS)", default = "example.com" }
+first_superuser = { type = "string", prompt = "Email of the first superuser", default = "admin@example.com", regex = "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$" }
+first_superuser_password = { type = "string", prompt = "Password for the first superuser", default = "changethis" }
+emails_from_email = { type = "string", prompt = "Address outgoing email is sent from", default = "info@example.com" }
+smtp_host = { type = "string", prompt = "SMTP host (leave empty to configure later in .env)", default = "" }
+smtp_user = { type = "string", prompt = "SMTP user", default = "" }
+smtp_password = { type = "string", prompt = "SMTP password", default = "" }
+sentry_dsn = { type = "string", prompt = "Sentry DSN (leave empty to disable)", default = "" }
+license = { type = "string", prompt = "License", choices = ["MIT", "Apache-2.0", "proprietary"], default = "MIT" }
+enable_traefik = { type = "bool", prompt = "Include Traefik reverse proxy config for production?", default = true }
+enable_jobs = { type = "bool", prompt = "Include the background job worker (apalis)?", default = true }
+enable_otel = { type = "bool", prompt = "Include OpenTelemetry tracing and Prometheus metrics?", default = true }
+enable_s3 = { type = "bool", prompt = "Include S3-compatible file uploads (MinIO locally)?", default = true }
+
+[conditional.'enable_traefik == false']
+ignore = ["compose.traefik.yml"]
+
+[conditional.'enable_jobs == false']
+ignore = ["backend/src/jobs", "backend/src/bin/worker.rs"]
+
+[conditional.'enable_otel == false']
+ignore = ["backend/src/telemetry/otel.rs", "docker/otel-collector.yaml"]
+
+[conditional.'enable_s3 == false']
+ignore = ["backend/src/storage"]

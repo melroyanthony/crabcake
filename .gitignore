@@ -1,0 +1,35 @@
+### Rust
+target/
+**/*.rs.bk
+*.pdb
+
+### Node
+node_modules/
+.next/
+out/
+dist/
+*.tsbuildinfo
+.pnpm-store/
+npm-debug.log*
+yarn-error.log*
+
+### Environment
+*.local
+.env.local
+.env.*.local
+
+### Test artifacts
+playwright-report/
+test-results/
+blob-report/
+coverage/
+lcov.info
+
+### Editors and OS
+.DS_Store
+.idea/
+*.swp
+*.swo
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
