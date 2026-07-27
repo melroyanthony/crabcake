@@ -1,3 +1,4 @@
+pub mod extract;
 pub mod routes;
 
 use std::time::Duration;
@@ -6,18 +7,26 @@ use axum::{
     Router,
     http::{HeaderValue, StatusCode},
 };
-use tower::ServiceBuilder;
+use tower::{Layer, ServiceBuilder};
 use tower_http::{
     catch_panic::CatchPanicLayer,
     compression::CompressionLayer,
     cors::{Any, CorsLayer},
     limit::RequestBodyLimitLayer,
+    normalize_path::{NormalizePath, NormalizePathLayer},
     request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer},
     timeout::TimeoutLayer,
     trace::TraceLayer,
 };
 
 use crate::{AppError, AppState};
+
+/// Wraps the router so that `/api/v1/users/` reaches the same handler as `/api/v1/users`.
+/// This has to sit outside the router rather than inside it, because a `Router` layer runs
+/// after the path has already been matched, and by then the trailing slash is a 404.
+pub fn serve(state: AppState) -> NormalizePath<Router> {
+    NormalizePathLayer::trim_trailing_slash().layer(build(state))
+}
 
 /// Assembles the router and the middleware every request passes through.
 pub fn build(state: AppState) -> Router {

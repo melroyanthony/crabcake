@@ -1,5 +1,6 @@
 use anyhow::Context;
 use app::{AppState, Config, api, bootstrap, db, telemetry};
+use axum::{ServiceExt, extract::Request};
 use tokio::{net::TcpListener, signal};
 
 #[tokio::main]
@@ -15,7 +16,7 @@ async fn main() -> anyhow::Result<()> {
 
     let address = config.bind_address;
     let state = AppState::new(config, pool);
-    let app = api::build(state);
+    let app = api::serve(state);
 
     let listener = TcpListener::bind(address)
         .await
@@ -23,7 +24,9 @@ async fn main() -> anyhow::Result<()> {
 
     tracing::info!(%address, "listening");
 
-    axum::serve(listener, app)
+    // into_make_service_with_connect_info is not used here, so the plain make service is what
+    // the path-normalising wrapper needs in order to be served.
+    axum::serve(listener, ServiceExt::<Request>::into_make_service(app))
         .with_graceful_shutdown(shutdown_signal())
         .await
         .context("server error")

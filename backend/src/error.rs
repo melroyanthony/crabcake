@@ -48,6 +48,24 @@ impl AppError {
     }
 }
 
+/// Turns a unique-constraint violation into a 409 carrying a message the caller can act on,
+/// instead of a 500 that says nothing. Racing two signups for the same address is a normal
+/// thing for clients to do, not a server fault.
+pub trait OnUniqueViolation<T> {
+    fn on_unique_violation(self, message: &str) -> AppResult<T>;
+}
+
+impl<T> OnUniqueViolation<T> for AppResult<T> {
+    fn on_unique_violation(self, message: &str) -> AppResult<T> {
+        self.map_err(|error| match &error {
+            AppError::Database(sqlx::Error::Database(db)) if db.is_unique_violation() => {
+                AppError::conflict(message)
+            }
+            _ => error,
+        })
+    }
+}
+
 /// A problem detail as described by RFC 9457, served as `application/problem+json`.
 #[derive(Debug, Serialize)]
 struct Problem {
