@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { LogoutButton } from "@/app/dashboard/logout-button";
+import { UserGreeting } from "@/app/dashboard/user-greeting";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -12,7 +13,7 @@ export const metadata = {
  * Placeholder behind the auth gate.
  *
  * Real dashboard content arrives with the pages milestone. This exists so the
- * BFF can be exercised end to end: login → cookie → protected page → logout.
+ * BFF and the generated client can be exercised end to end.
  */
 export default function DashboardPage() {
   return (
@@ -20,10 +21,7 @@ export default function DashboardPage() {
       <div className="space-y-2">
         <p className="font-mono text-sm text-muted-foreground">Crabcake</p>
         <h1 className="text-3xl font-semibold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground">
-          You are signed in. The session is carried by httpOnly cookies and
-          refreshed through the same-origin API proxy.
-        </p>
+        <UserGreeting />
       </div>
 
       <div className="flex flex-wrap gap-3">

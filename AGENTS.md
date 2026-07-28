@@ -101,6 +101,9 @@ real problem, not by being interesting.
 - **TypeScript 7 needs `experimental.useTypeScriptCli` in `frontend/next.config.ts`.**
   The TypeScript 7 package no longer ships the JavaScript compiler API `next build` used to
   load, so the build runs the project-local `tsc` instead.
+- **`@hey-api/openapi-ts` still needs TypeScript 5's JS API.** `npm run generate-client`
+  unpacks `typescript@5.9.3` under the generator's own `node_modules` for that process only;
+  the app itself stays on TypeScript 7.
 - **The job queue is `apalis` on its stable 0.7 line**, not the 1.0 release candidate, so that
   no generated project depends on a pre-release.
 - **`sqlx` is held at 0.8 to match `apalis-sql`.** Moving to 0.9 splits the tree: two copies of
