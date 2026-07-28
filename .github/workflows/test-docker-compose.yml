@@ -1,0 +1,38 @@
+name: Test Docker Compose
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+permissions: {}
+
+# Skipped on the Crabcake template repository itself: compose.yml still contains
+# Liquid there. Generated projects have no cargo-generate.toml, so this runs.
+jobs:
+  test-docker-compose:
+    if: hashFiles('cargo-generate.toml') == ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Write .env
+        run: bash scripts/ci-env.sh
+
+      - name: Build
+        run: docker compose build
+
+      - name: Up
+        run: docker compose up -d --wait
+
+      - name: Backend health
+        run: curl -fsS http://127.0.0.1:8000/health/ready
+
+      - name: Frontend
+        run: curl -fsS -o /dev/null -w "%{http_code}\n" http://127.0.0.1:3000/ | grep -E '^[23]'
+
+      - name: Down
+        if: always()
+        run: docker compose down -v --remove-orphans

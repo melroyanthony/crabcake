@@ -29,7 +29,7 @@ frontend whose API client is generated from the backend's OpenAPI spec.
 | `backend/`            | Axum API and background worker                                  |
 | `frontend/`           | Next.js App Router frontend                                     |
 | `.github/workflows/`  | CI shipped **to generated projects**                            |
-| `.template/`          | CI for the template itself, never copied to a project           |
+| `template-smoke.yml`  | Meta CI for this repo only; listed in cargo-generate `ignore`   |
 
 ## Template rules
 

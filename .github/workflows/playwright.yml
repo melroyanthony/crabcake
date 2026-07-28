@@ -1,0 +1,83 @@
+name: Playwright
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+permissions: {}
+
+# Skipped on the Crabcake template repository itself: compose.yml still contains
+# Liquid there. Generated projects have no cargo-generate.toml, so this runs.
+jobs:
+  changes:
+    if: hashFiles('cargo-generate.toml') == ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      changed: ${{ steps.filter.outputs.changed }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Filter paths
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            changed:
+              - backend/**
+              - frontend/**
+              - compose*.yml
+              - scripts/ci-env.sh
+              - .github/workflows/playwright.yml
+
+  playwright:
+    needs: changes
+    if: needs.changes.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Write .env
+        run: bash scripts/ci-env.sh
+
+      - name: Install frontend
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Chromium
+        working-directory: frontend
+        run: npx playwright install chromium --with-deps
+
+      - name: Build and start stack
+        run: docker compose up -d --build --wait
+
+      - name: Run Playwright
+        working-directory: frontend
+        env:
+          CI: "1"
+          MAILCATCHER_HOST: http://localhost:1080
+        run: npm run test:e2e
+
+      - name: Upload report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report
+          retention-days: 7
+
+      - name: Down
+        if: always()
+        run: docker compose down -v --remove-orphans

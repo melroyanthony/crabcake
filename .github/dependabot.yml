@@ -1,0 +1,73 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "⬆️"
+    labels:
+      - dependencies
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+
+  - package-ecosystem: cargo
+    directory: /backend
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "⬆️"
+    labels:
+      - dependencies
+    groups:
+      rust:
+        patterns:
+          - "*"
+
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "⬆️"
+    labels:
+      - dependencies
+    ignore:
+      - dependency-name: "@hey-api/openapi-ts"
+    groups:
+      npm:
+        patterns:
+          - "*"
+
+  - package-ecosystem: docker
+    directory: /backend
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "⬆️"
+    labels:
+      - dependencies
+
+  - package-ecosystem: docker
+    directory: /frontend
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "⬆️"
+    labels:
+      - dependencies
+
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "⬆️"
+    labels:
+      - dependencies
+    groups:
+      compose:
+        patterns:
+          - "*"

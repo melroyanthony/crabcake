@@ -1,0 +1,96 @@
+name: Template smoke
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+permissions: {}
+
+# Runs only in the Crabcake template repository. cargo-generate ignore list
+# strips this file from generated projects.
+jobs:
+  smoke:
+    if: hashFiles('cargo-generate.toml') != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: app
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d app"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/app
+      CARGO_TERM_COLOR: always
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install cargo-generate
+        uses: baptiste0928/cargo-install@v3
+        with:
+          crate: cargo-generate
+
+      - name: Generate a project
+        run: |
+          rm -rf /tmp/crabcake-smoke
+          mkdir -p /tmp/crabcake-smoke
+          cargo generate --path . --name my-app --destination /tmp/crabcake-smoke --silent --allow-commands
+
+      - name: No leftover Liquid
+        run: |
+          if grep -R -E -l '\{\{|\{%' /tmp/crabcake-smoke/my-app \
+            --exclude-dir=target \
+            --exclude-dir=.git \
+            --exclude-dir=node_modules; then
+            echo "leftover Liquid placeholders in generated project" >&2
+            exit 1
+          fi
+          echo "clean"
+
+      - name: Backend checks in generated project
+        working-directory: /tmp/crabcake-smoke/my-app/backend
+        env:
+          SQLX_OFFLINE: "true"
+        run: |
+          cargo fmt --check
+          cargo clippy --all-targets -- -D warnings
+          cargo check --all-targets
+          unset SQLX_OFFLINE
+          cargo test
+
+      - name: Frontend checks in generated project
+        working-directory: /tmp/crabcake-smoke/my-app/frontend
+        run: |
+          npm ci
+          npm run lint
+          npm run typecheck
+          npm run build
+
+      - name: Compose build and health
+        working-directory: /tmp/crabcake-smoke/my-app
+        run: |
+          docker compose build
+          docker compose up -d --wait
+          curl -fsS http://127.0.0.1:8000/health/ready
+          curl -fsS -o /dev/null http://127.0.0.1:3000/
+          docker compose down -v --remove-orphans
