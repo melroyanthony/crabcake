@@ -17,6 +17,9 @@ services:
     # published MinIO port with the same hostname the browser uses.
     extra_hosts:
       - "localhost:host-gateway"
+    environment:
+      # Local and Playwright signup bursts should not trip the production limiter.
+      RATE_LIMIT_PER_SECOND: "0"
     depends_on:
       db:
         condition: service_healthy

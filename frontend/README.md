@@ -26,7 +26,20 @@ From the repository root:
 just dev-frontend
 just test-frontend
 just client             # writes openapi.json, then regenerates src/client/
+just e2e                # Playwright against the Compose stack
 ```
+
+## End-to-end tests
+
+Playwright specs live in `tests/` and expect the full Compose stack (`just up`),
+including the worker and Mailcatcher for password recovery.
+
+```bash
+npx playwright install chromium   # once per machine
+just e2e
+```
+
+Credentials come from the repository-root `.env` (`FIRST_SUPERUSER` and friends).
 
 ## Auth
 

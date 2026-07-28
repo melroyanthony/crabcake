@@ -74,7 +74,7 @@ test-frontend:
 
 # Playwright end-to-end tests against the Compose stack
 e2e: up
-    cd frontend && npx playwright test
+    cd frontend && MAILCATCHER_HOST=http://localhost:1080 npm run test:e2e
 
 # Format everything
 fmt:

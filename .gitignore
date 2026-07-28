@@ -28,6 +28,7 @@ openapi.json
 playwright-report/
 test-results/
 blob-report/
+frontend/playwright/.auth/
 coverage/
 lcov.info
 

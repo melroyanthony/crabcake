@@ -13,7 +13,11 @@
       "!.next",
       "!dist",
       "!build",
-      "!src/client"
+      "!src/client",
+      "!playwright-report",
+      "!test-results",
+      "!blob-report",
+      "!playwright"
     ]
   },
   "formatter": {
