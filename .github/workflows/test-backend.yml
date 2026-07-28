@@ -27,6 +27,10 @@ jobs:
           --health-retries 10
     env:
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/app
+      # Compile-time query checks use the checked-in .sqlx cache. Without this,
+      # DATABASE_URL makes sqlx hit the service DB before migrations run, and
+      # Clippy / cargo test fail to compile with exit 101.
+      SQLX_OFFLINE: "true"
       CARGO_TERM_COLOR: always
       RUSTFLAGS: -D warnings
     steps:
@@ -53,8 +57,6 @@ jobs:
 
       - name: Offline compile (sqlx cache)
         working-directory: backend
-        env:
-          SQLX_OFFLINE: "true"
         run: cargo check --all-targets
 
       - name: Test
