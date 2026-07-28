@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use time::{Duration, OffsetDateTime};
 use uuid::Uuid;
 
@@ -15,13 +15,13 @@ use crate::{
 const DUMMY_HASH: &str = "$argon2id$v=19$m=19456,t=2,p=1$c2FsdHNhbHRzYWx0c2E$\
                           Kq5ETPFCFVgUqQZ0F2QJZ7FQE0zVJqQvVYnQZQe0m1A";
 
-#[derive(Debug, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct TokenPair {
     pub access_token: String,
     /// Opaque, single-use, and revocable. Exchanging it invalidates it.
     pub refresh_token: String,
     #[schema(example = "bearer")]
-    pub token_type: &'static str,
+    pub token_type: String,
 }
 
 pub async fn login(state: &AppState, email: &str, plaintext: &str) -> AppResult<TokenPair> {
@@ -89,6 +89,6 @@ async fn issue_pair(state: &AppState, user: &User) -> AppResult<TokenPair> {
     Ok(TokenPair {
         access_token,
         refresh_token: token.plaintext,
-        token_type: "bearer",
+        token_type: "bearer".to_owned(),
     })
 }
