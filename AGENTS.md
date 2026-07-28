@@ -98,6 +98,9 @@ real problem, not by being interesting.
   for ecosystem support, including utoipa.
 - **Linting and formatting TypeScript is Biome**, not ESLint, because `typescript-eslint`
   does not support TypeScript 7.
+- **TypeScript 7 needs `experimental.useTypeScriptCli` in `frontend/next.config.ts`.**
+  The TypeScript 7 package no longer ships the JavaScript compiler API `next build` used to
+  load, so the build runs the project-local `tsc` instead.
 - **The job queue is `apalis` on its stable 0.7 line**, not the 1.0 release candidate, so that
   no generated project depends on a pre-release.
 - **`sqlx` is held at 0.8 to match `apalis-sql`.** Moving to 0.9 splits the tree: two copies of

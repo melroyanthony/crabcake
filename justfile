@@ -70,7 +70,7 @@ test-backend:
 
 # Frontend lints, type check and build
 test-frontend:
-    cd frontend && npm run lint && npx tsc --noEmit && npm run build
+    cd frontend && npm run lint && npm run typecheck && npm run build
 
 # Playwright end-to-end tests against the Compose stack
 e2e: up
