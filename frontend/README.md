@@ -27,14 +27,33 @@ just test-frontend
 just client           # regenerate src/client/ from the OpenAPI spec (once wired)
 ```
 
+## Auth
+
+Sessions are a BFF concern. The browser talks only to same-origin routes; tokens
+never appear in JavaScript.
+
+| Route | Purpose |
+| --- | --- |
+| `POST /api/auth/login` | Exchange email/password for httpOnly cookies |
+| `POST /api/auth/logout` | Revoke the refresh token and clear cookies |
+| `POST /api/auth/logout-everywhere` | End every session, then clear cookies |
+| `POST /api/auth/refresh` | Rotate cookies from the refresh token alone |
+| `GET /api/auth/me` | The signed-in user |
+| `/api/v1/*` | Proxy onto the Axum API, with Bearer + refresh-on-401 |
+
+`src/proxy.ts` redirects unauthenticated visits to `/login` for dashboard-style
+routes. Set `API_URL` (see `.env.local.example`) so the BFF can reach the API.
+
 ## Layout
 
 | Path | Purpose |
 | --- | --- |
 | `src/app/` | Routes and layouts |
+| `src/app/api/auth/` | BFF auth route handlers |
+| `src/app/api/v1/` | Same-origin proxy onto the Axum API |
 | `src/components/ui/` | shadcn/ui primitives — edit freely |
 | `src/components/` | App components built on top of those |
-| `src/lib/` | Shared helpers (`cn`, and later the API helpers) |
+| `src/lib/auth/` | Cookie helpers and server-side API calls |
 | `src/client/` | Generated OpenAPI client — never hand-edit |
 
 Add more UI with:
