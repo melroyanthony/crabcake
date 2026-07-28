@@ -11,7 +11,6 @@ client.setConfig({
   baseUrl: "",
 });
 
-export { client };
 export type {
   Item,
   ItemCreate,
@@ -25,3 +24,4 @@ export type {
   UserUpdate,
   UserUpdateMe,
 } from "@/client";
+export { client };
