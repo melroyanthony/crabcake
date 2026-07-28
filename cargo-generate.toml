@@ -37,18 +37,16 @@ smtp_password = { type = "string", prompt = "SMTP password", default = "" }
 sentry_dsn = { type = "string", prompt = "Sentry DSN (leave empty to disable)", default = "" }
 license = { type = "string", prompt = "License", choices = ["MIT", "Apache-2.0", "proprietary"], default = "MIT" }
 enable_traefik = { type = "bool", prompt = "Include Traefik reverse proxy config for production?", default = true }
-enable_jobs = { type = "bool", prompt = "Include the background job worker (apalis)?", default = true }
-enable_otel = { type = "bool", prompt = "Include OpenTelemetry tracing and Prometheus metrics?", default = true }
+enable_otel = { type = "bool", prompt = "Export traces and serve Prometheus metrics?", default = true }
 enable_s3 = { type = "bool", prompt = "Include S3-compatible file uploads (MinIO locally)?", default = true }
 
+# These answers tailor configuration and Compose services, never Rust source. Every optional
+# feature is switched on by configuration and stays quiet without it, the way the mailer logs
+# instead of sending when SMTP_HOST is empty. Deleting a module would leave its `mod` line in
+# lib.rs, and templating lib.rs would stop this repository being a project that compiles on its
+# own, which is worth more than shaving a dependency off an opted-out build.
 [conditional.'enable_traefik == false']
 ignore = ["compose.traefik.yml"]
 
-[conditional.'enable_jobs == false']
-ignore = ["backend/src/jobs", "backend/src/bin/worker.rs"]
-
 [conditional.'enable_otel == false']
-ignore = ["backend/src/telemetry/otel.rs", "docker/otel-collector.yaml"]
-
-[conditional.'enable_s3 == false']
-ignore = ["backend/src/storage"]
+ignore = ["docker/otel-collector.yaml"]

@@ -2,6 +2,7 @@ pub mod health;
 pub mod items;
 pub mod login;
 pub mod password;
+pub mod uploads;
 pub mod users;
 
 use utoipa_axum::router::OpenApiRouter;
@@ -15,4 +16,5 @@ pub fn router() -> OpenApiRouter<AppState> {
         .nest("/password", password::router())
         .nest("/users", users::router())
         .nest("/items", items::router())
+        .nest("/uploads", uploads::router())
 }

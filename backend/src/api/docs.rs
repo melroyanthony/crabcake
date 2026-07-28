@@ -14,6 +14,7 @@ use utoipa::{
         (name = "password", description = "Resetting a forgotten password by email."),
         (name = "users", description = "Accounts, both your own and, for superusers, everyone else's."),
         (name = "items", description = "The example domain. Replace it with yours."),
+        (name = "uploads", description = "Files, exchanged directly with object storage through signed links."),
     ),
     info(
         title = "API",

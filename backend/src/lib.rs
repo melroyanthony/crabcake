@@ -10,6 +10,7 @@ pub mod models;
 pub mod repo;
 pub mod services;
 pub mod state;
+pub mod storage;
 pub mod telemetry;
 
 pub use config::Config;

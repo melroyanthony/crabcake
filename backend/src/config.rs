@@ -71,6 +71,45 @@ pub struct Config {
     #[serde(default = "defaults::password_reset_token_expire_hours")]
     pub password_reset_token_expire_hours: i64,
 
+    /// Empty means uploads are switched off, and the upload endpoints answer 501.
+    #[serde(default)]
+    pub s3_bucket: String,
+    /// Set for anything S3-compatible that is not AWS, such as MinIO locally.
+    #[serde(default)]
+    pub s3_endpoint: String,
+    #[serde(default = "defaults::s3_region")]
+    pub s3_region: String,
+    #[serde(default)]
+    pub s3_access_key_id: String,
+    #[serde(default = "defaults::empty_secret")]
+    pub s3_secret_access_key: SecretString,
+    /// MinIO needs this. Real S3 does not, and rejects it for buckets with dots in the name.
+    #[serde(default)]
+    pub s3_force_path_style: bool,
+    /// How long an upload or download link stays valid.
+    #[serde(default = "defaults::upload_url_expire_seconds")]
+    pub upload_url_expire_seconds: u64,
+
+    /// Where to send traces, for example `http://otel-collector:4317`. Empty means no export.
+    #[serde(default)]
+    pub otel_exporter_otlp_endpoint: String,
+    /// How this service identifies itself in traces. Falls back to `app`.
+    #[serde(default)]
+    pub otel_service_name: String,
+    #[serde(default)]
+    pub metrics_enabled: bool,
+    /// Where the metrics endpoint listens. Deliberately not the API's port, and by default not
+    /// a public interface either.
+    #[serde(default = "defaults::metrics_bind_address")]
+    pub metrics_bind_address: SocketAddr,
+
+    /// Requests per second allowed from one caller, or 0 to let everything through.
+    #[serde(default = "defaults::rate_limit_per_second")]
+    pub rate_limit_per_second: u32,
+    /// How far a caller may burst above the steady rate before being turned away.
+    #[serde(default = "defaults::rate_limit_burst")]
+    pub rate_limit_burst: u32,
+
     #[serde(default = "defaults::request_timeout_seconds")]
     pub request_timeout_seconds: u64,
     #[serde(default = "defaults::body_limit_bytes")]
@@ -112,6 +151,21 @@ impl Config {
             &self.project_name
         } else {
             &self.emails_from_name
+        }
+    }
+
+    /// The name traces are attributed to. Without one, every span arrives as
+    /// `unknown_service` and a collector cannot tell two services apart.
+    /// Whether there is anywhere to put a file.
+    pub fn uploads_enabled(&self) -> bool {
+        !self.s3_bucket.is_empty()
+    }
+
+    pub fn otel_service_name(&self) -> &str {
+        if self.otel_service_name.is_empty() {
+            "app"
+        } else {
+            &self.otel_service_name
         }
     }
 
@@ -164,6 +218,19 @@ impl Config {
             emails_from_name: String::new(),
             emails_from_email: String::new(),
             password_reset_token_expire_hours: 1,
+            s3_bucket: String::new(),
+            s3_endpoint: String::new(),
+            s3_region: defaults::s3_region(),
+            s3_access_key_id: String::new(),
+            s3_secret_access_key: defaults::empty_secret(),
+            s3_force_path_style: false,
+            upload_url_expire_seconds: defaults::upload_url_expire_seconds(),
+            otel_exporter_otlp_endpoint: String::new(),
+            otel_service_name: String::new(),
+            metrics_enabled: false,
+            metrics_bind_address: defaults::metrics_bind_address(),
+            rate_limit_per_second: 0,
+            rate_limit_burst: defaults::rate_limit_burst(),
             request_timeout_seconds: 30,
             body_limit_bytes: 1024,
         }
@@ -203,6 +270,26 @@ mod defaults {
         1
     }
 
+    /// Generous enough that ordinary use never notices, low enough to blunt credential
+    /// stuffing and scraping.
+    pub fn rate_limit_per_second() -> u32 {
+        20
+    }
+
+    pub fn rate_limit_burst() -> u32 {
+        50
+    }
+
+    pub fn s3_region() -> String {
+        "us-east-1".to_owned()
+    }
+
+    /// Long enough for a slow connection to finish a large file, short enough that a link
+    /// pasted somewhere it should not be goes stale quickly.
+    pub fn upload_url_expire_seconds() -> u64 {
+        900
+    }
+
     pub fn environment() -> Environment {
         Environment::Local
     }
@@ -213,6 +300,13 @@ mod defaults {
 
     pub fn bind_address() -> SocketAddr {
         ([0, 0, 0, 0], 8000).into()
+    }
+
+    /// Loopback, so that metrics are not reachable from another host unless somebody says so.
+    /// In Compose this becomes 0.0.0.0 on an unpublished port, which the collector can reach
+    /// and the internet cannot.
+    pub fn metrics_bind_address() -> SocketAddr {
+        ([127, 0, 0, 1], 9100).into()
     }
 
     pub fn frontend_host() -> String {

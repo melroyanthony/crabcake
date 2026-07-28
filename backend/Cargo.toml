@@ -80,6 +80,38 @@ apalis-sql = { version = "0.7", default-features = false, features = [
     "postgres",
     "tokio-comp",
 ] }
+# tonic is in its default features and would drag gRPC in for nothing.
+tower_governor = { version = "0.8", default-features = false, features = [
+    "axum",
+    "tracing",
+] }
+# No default features on any of these, and the HTTP client supplied by hand in `storage`. The
+# defaults would bring aws-lc-rs, which needs cmake and a C compiler to build, and their `rustls`
+# feature is the old hyper 0.14 path, which would mean a second HTTP stack. Everything else here
+# is on ring, so this is too.
+aws-config = { version = "1", default-features = false, features = [
+    "behavior-version-latest",
+    "rt-tokio",
+] }
+aws-sdk-s3 = { version = "1", default-features = false, features = [
+    "behavior-version-latest",
+    "http-1x",
+    "rt-tokio",
+] }
+aws-credential-types = "1"
+aws-smithy-http-client = { version = "1", default-features = false, features = [
+    "rustls-ring",
+] }
+axum-prometheus = "0.10"
+opentelemetry = "0.32"
+opentelemetry_sdk = { version = "0.32", features = ["rt-tokio"] }
+# gRPC to a collector on 4317, rather than the HTTP exporter: it is what every collector
+# accepts by default, and tonic is already in the tree through the SDK's dependencies.
+opentelemetry-otlp = { version = "0.32", default-features = false, features = [
+    "grpc-tonic",
+    "trace",
+] }
+tracing-opentelemetry = "0.33"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 uuid = { version = "1", features = ["serde", "v4"] }

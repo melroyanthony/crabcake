@@ -1,6 +1,8 @@
 pub mod docs;
 pub mod extract;
+pub mod rate_limit;
 pub mod routes;
+pub mod trace;
 
 use std::time::Duration;
 
@@ -15,7 +17,7 @@ use tower_http::{
     compression::CompressionLayer,
     cors::{Any, CorsLayer},
     limit::RequestBodyLimitLayer,
-    normalize_path::{NormalizePath, NormalizePathLayer},
+    normalize_path::NormalizePathLayer,
     request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer},
     timeout::TimeoutLayer,
     trace::TraceLayer,
@@ -30,11 +32,20 @@ use crate::{AppError, AppState, api::docs::ApiDoc};
 pub const DOCS_PATH: &str = "/docs";
 pub const OPENAPI_PATH: &str = "/api/openapi.json";
 
-/// Wraps the router so that `/api/v1/users/` reaches the same handler as `/api/v1/users`.
-/// This has to sit outside the router rather than inside it, because a `Router` layer runs
-/// after the path has already been matched, and by then the trailing slash is a 404.
-pub fn serve(state: AppState) -> NormalizePath<Router> {
-    NormalizePathLayer::trim_trailing_slash().layer(build(state))
+/// The application as served.
+///
+/// Trailing slashes are trimmed so that `/api/v1/users/` reaches the same handler as
+/// `/api/v1/users`. That has to happen outside the router, because a `Router` layer runs after
+/// the path has been matched, and by then the trailing slash is already a 404.
+///
+/// The result is then wrapped in an otherwise empty router, which looks redundant but is not:
+/// `axum::serve` can only attach each connection's address to a `Router`, and without that
+/// address the rate limiter cannot tell callers apart when there is no proxy in front to say
+/// who they are.
+pub fn serve(state: AppState) -> Router {
+    let normalized = NormalizePathLayer::trim_trailing_slash().layer(build(state));
+
+    Router::new().fallback_service(normalized)
 }
 
 /// Assembles the router and the middleware every request passes through.
@@ -46,7 +57,11 @@ pub fn build(state: AppState) -> Router {
     let middleware = ServiceBuilder::new()
         .layer(CatchPanicLayer::new())
         .layer(SetRequestIdLayer::x_request_id(MakeRequestUuid))
-        .layer(TraceLayer::new_for_http())
+        .layer(
+            TraceLayer::new_for_http()
+                .make_span_with(trace::RequestSpan)
+                .on_response(trace::RecordResponse),
+        )
         .layer(PropagateRequestIdLayer::x_request_id())
         .layer(TimeoutLayer::with_status_code(
             StatusCode::REQUEST_TIMEOUT,
@@ -64,7 +79,7 @@ pub fn build(state: AppState) -> Router {
     // The title is only known at runtime, so the document carries a neutral one until here.
     openapi.info.title.clone_from(&config.project_name);
 
-    router
+    let router = router
         // Served from the finished document rather than rebuilt per request, so what the
         // documentation shows is exactly what the router does.
         .merge(Scalar::with_url(DOCS_PATH, openapi.clone()))
@@ -72,8 +87,16 @@ pub fn build(state: AppState) -> Router {
         // Without this, an unmatched path returns a bodyless 404 while every other error is
         // problem+json, and clients need two ways to read a failure.
         .fallback(not_found)
-        .layer(middleware)
-        .with_state(state)
+        .with_state(state.clone());
+
+    let config = state.config();
+
+    // Both sit inside the middleware stack: a rejected request is still traced and still carries
+    // a request id, and a request that is rate limited is still counted.
+    let router = rate_limit::apply(router, config);
+    let router = crate::telemetry::metrics::apply(router, config);
+
+    router.layer(middleware)
 }
 
 /// The document on its own, for the binary that writes it to a file.

@@ -46,7 +46,13 @@ template that still generates but emits broken projects, so they are easy to mis
 4. **Rhai's `trim()` mutates in place and returns unit.** `system::command(...)` already
    returns trimmed stdout, so never chain `.trim()` onto it — the value silently becomes unit
    and `variable::set` fails.
-5. **Verify by generating.** After changing anything in the template layer:
+5. **Optional features are switched on by configuration, never by deleting code.** Every
+   optional extra — trace export, metrics, uploads, email — compiles in and stays quiet when
+   its setting is absent, the way the mailer logs instead of sending with no `SMTP_HOST`.
+   Removing a module would leave its `mod` line behind in `lib.rs`, and templating `lib.rs`
+   would stop this repository being a project that compiles on its own. The `enable_*` answers
+   therefore tailor `.env.example` and Compose services only.
+6. **Verify by generating.** After changing anything in the template layer:
 
    ```bash
    rm -rf /tmp/crabcake-smoke && mkdir -p /tmp/crabcake-smoke
@@ -99,6 +105,12 @@ real problem, not by being interesting.
   Both also register their migrations in `_sqlx_migrations`, which sqlx 0.8 cannot rename, so
   each migrator sets `ignore_missing`. Keep app migrations numbered from 1; the queue's are
   timestamps, so the two cannot collide.
+- **Everything is on `ring`, and nothing on `aws-lc-rs`.** `aws-lc-rs` needs cmake and a C
+  compiler, which the Docker image deliberately does not have. That is why the AWS SDK is
+  declared with `default-features = false` and handed an HTTP client built in `storage`: its
+  defaults bring `aws-lc-rs`, and its own `rustls` feature is the old hyper 0.14 path, which
+  would mean a second HTTP stack in the tree. If you add a crate that speaks TLS, check
+  `cargo tree -i aws-lc-rs` comes back empty.
 
 Considered and deliberately not used: `tonic` and `prost` (no gRPC here), `tokio-tungstenite`
 (axum has WebSockets built in), `moka` (no measured hot path to cache), `tokio-console`

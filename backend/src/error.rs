@@ -19,6 +19,10 @@ pub enum AppError {
     Conflict(String),
     #[error("{0}")]
     Validation(String),
+    /// A feature the caller asked for that this deployment has not been configured with, such as
+    /// uploads without a bucket. A 501 rather than a 500: nothing is broken, it is simply absent.
+    #[error("{0}")]
+    NotConfigured(String),
     #[error(transparent)]
     Database(#[from] sqlx::Error),
     /// Anything the caller can neither cause nor fix. Never rendered to the client.
@@ -35,6 +39,10 @@ impl AppError {
         Self::Validation(message.into())
     }
 
+    pub fn not_configured(message: impl Into<String>) -> Self {
+        Self::NotConfigured(message.into())
+    }
+
     fn status(&self) -> StatusCode {
         match self {
             Self::NotFound => StatusCode::NOT_FOUND,
@@ -42,6 +50,7 @@ impl AppError {
             Self::Forbidden => StatusCode::FORBIDDEN,
             Self::Conflict(_) => StatusCode::CONFLICT,
             Self::Validation(_) => StatusCode::UNPROCESSABLE_ENTITY,
+            Self::NotConfigured(_) => StatusCode::NOT_IMPLEMENTED,
             Self::Database(sqlx::Error::RowNotFound) => StatusCode::NOT_FOUND,
             Self::Database(_) | Self::Unexpected(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
@@ -86,8 +95,12 @@ impl IntoResponse for AppError {
         let status = self.status();
 
         // Internal failures are logged in full and reported as a bare 500, so that a database
-        // error can never leak a table name or a connection string to a caller.
-        let detail = if status.is_server_error() {
+        // error can never leak a table name or a connection string to a caller. A missing
+        // feature is the exception: it is a 5xx by status but there is nothing to hide, and
+        // "Internal server error" would send someone looking for a fault that does not exist.
+        let detail = if matches!(self, Self::NotConfigured(_)) {
+            self.to_string()
+        } else if status.is_server_error() {
             tracing::error!(error = ?self, "request failed");
             "Internal server error".to_owned()
         } else {
@@ -130,5 +143,33 @@ mod tests {
     fn unexpected_errors_are_server_errors() {
         let error = AppError::Unexpected(anyhow::anyhow!("the disk caught fire"));
         assert_eq!(error.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    /// A 500 must say nothing, but a 501 has to say what is missing, or the caller cannot tell
+    /// an unconfigured feature from a broken one.
+    #[tokio::test]
+    async fn a_missing_feature_explains_itself_and_a_fault_does_not() {
+        use axum::body::to_bytes;
+
+        async fn detail(error: AppError) -> String {
+            let response = error.into_response();
+            let body = to_bytes(response.into_body(), usize::MAX)
+                .await
+                .expect("a small body");
+
+            serde_json::from_slice::<serde_json::Value>(&body).expect("problem json")["detail"]
+                .as_str()
+                .expect("a detail")
+                .to_owned()
+        }
+
+        let missing = AppError::not_configured("uploads are not configured on this server");
+        assert_eq!(
+            detail(missing).await,
+            "uploads are not configured on this server"
+        );
+
+        let broken = AppError::Unexpected(anyhow::anyhow!("the connection string is postgres://"));
+        assert_eq!(detail(broken).await, "Internal server error");
     }
 }

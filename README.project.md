@@ -97,7 +97,31 @@ just mail    # opens http://localhost:1080
 Email is optional. With no `SMTP_HOST` set, messages are logged instead of sent, so a fresh
 checkout runs before you have thought about mail at all.
 
-## ✅ Testing
+{% if enable_s3 %}## 📦 File Uploads
+
+Files never travel through the API. A client asks `POST /api/v1/uploads` what to do with a file
+and gets back a signed URL to `PUT` it to, then uploads straight to storage:
+
+```bash
+# 1. ask where to put it
+curl -X POST localhost:8000/api/v1/uploads -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"filename": "photo.jpg", "content_type": "image/jpeg"}'
+
+# 2. send the file to the url that came back, then keep the key
+curl -X PUT --upload-file photo.jpg -H 'Content-Type: image/jpeg' "$URL"
+```
+
+This keeps large files out of the API's memory, out of its request timeout and out of its body
+limit, and it means putting a CDN in front later changes nothing on the server. Store the `key`
+against your own records; `POST /api/v1/uploads/link` turns it back into a link when you need to
+read the file.
+
+Every key lives under a prefix belonging to the account that made it, so somebody else's key is
+a 404 rather than a way to read their files. Locally the bucket is MinIO. Clearing `S3_BUCKET`
+switches uploads off, and the endpoints then answer `501` instead of failing.
+
+{% endif %}## ✅ Testing
 
 ```bash
 just test    # backend fmt, clippy and tests, then frontend lint, types and build
@@ -117,8 +141,11 @@ See [docs/deployment.md](docs/deployment.md).
 
 Your `.env` was generated with fresh secrets. Before deploying:
 
-- Rotate `SECRET_KEY` and `POSTGRES_PASSWORD`, and supply them from your platform's secret
-  store rather than a committed file. Generate new ones with `just secrets`.
+- Rotate `SECRET_KEY`, `POSTGRES_PASSWORD`{% if enable_s3 %} and `S3_SECRET_ACCESS_KEY`{% endif %}, and supply them from your platform's
+  secret store rather than a committed file. Generate new ones with `just secrets`.{% if enable_s3 %}
+- On AWS, leave `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY` empty and give the task an
+  instance role instead. With no keys set, the usual AWS credential chain is used, so nothing
+  long-lived has to exist.{% endif %}
 - Change `FIRST_SUPERUSER_PASSWORD` from whatever you set at creation time.
 
 The API refuses to start outside `local` while any of these is still `changethis`.

@@ -2,7 +2,7 @@ use std::{ops::Deref, sync::Arc};
 
 use sqlx::PgPool;
 
-use crate::{Config, jobs::EmailQueue};
+use crate::{Config, jobs::EmailQueue, storage::Storage};
 
 /// Shared application state. Cloned for every request, so everything inside is either cheap
 /// to clone or behind an `Arc`.
@@ -15,12 +15,18 @@ struct Inner {
     config: Config,
     db: PgPool,
     emails: EmailQueue,
+    storage: Storage,
 }
 
 impl AppState {
-    pub fn new(config: Config, db: PgPool, emails: EmailQueue) -> Self {
+    pub fn new(config: Config, db: PgPool, emails: EmailQueue, storage: Storage) -> Self {
         Self {
-            inner: Arc::new(Inner { config, db, emails }),
+            inner: Arc::new(Inner {
+                config,
+                db,
+                emails,
+                storage,
+            }),
         }
     }
 
@@ -34,6 +40,10 @@ impl AppState {
 
     pub fn emails(&self) -> &EmailQueue {
         &self.inner.emails
+    }
+
+    pub fn storage(&self) -> &Storage {
+        &self.inner.storage
     }
 }
 

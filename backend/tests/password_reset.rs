@@ -10,6 +10,7 @@ use app::{
     models::Password,
     repo::{self, users::NewUser},
     services::password_reset,
+    storage::Storage,
 };
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -25,7 +26,9 @@ async fn state(pool: &PgPool) -> AppState {
         ..Config::for_tests()
     };
 
-    AppState::new(config, pool.clone(), jobs::queue(pool.clone()))
+    let storage = Storage::from_config(&config).await;
+
+    AppState::new(config, pool.clone(), jobs::queue(pool.clone()), storage)
 }
 
 async fn user(pool: &PgPool, email: &str, plaintext: &str) -> Uuid {
