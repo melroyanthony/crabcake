@@ -41,7 +41,7 @@ tower-http = { version = "0.7", features = [
 ] }
 # Held at 0.8 to match apalis-sql, so the whole tree shares one sqlx and one connection pool
 # rather than compiling two copies and running two.
-sqlx = { version = "0.8", features = [
+sqlx = { version = "0.9", features = [
     "macros",
     "migrate",
     "postgres",
@@ -53,7 +53,7 @@ sqlx = { version = "0.8", features = [
 argon2 = { version = "0.5", features = ["std"] }
 # Pulled in explicitly to switch on getrandom, which is what makes SaltString::generate and
 # OsRng available through argon2's re-export.
-password-hash = { version = "0.5", features = ["getrandom"] }
+password-hash = { version = "0.6", features = ["getrandom"] }
 # jsonwebtoken 11 refuses to pick a crypto backend for you. rust_crypto keeps the build pure
 # Rust, with no C toolchain needed for the Docker image.
 jsonwebtoken = { version = "11", default-features = false, features = ["rust_crypto"] }
