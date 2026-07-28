@@ -45,9 +45,13 @@ migration name:
 prepare:
     cd backend && cargo sqlx prepare -- --all-targets
 
-# Write the OpenAPI spec to openapi.json
+# Write the OpenAPI spec to openapi.json. Needs no database and no running server
 spec:
-    cd backend && cargo run --bin spec > ../openapi.json
+    cd backend && cargo run --quiet --bin openapi -- ../openapi.json
+
+# Open the interactive API documentation
+docs:
+    open http://localhost:8000/docs
 
 # Regenerate the frontend API client from the backend spec
 client: spec

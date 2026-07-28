@@ -15,10 +15,12 @@ use crate::{
 const DUMMY_HASH: &str = "$argon2id$v=19$m=19456,t=2,p=1$c2FsdHNhbHRzYWx0c2E$\
                           Kq5ETPFCFVgUqQZ0F2QJZ7FQE0zVJqQvVYnQZQe0m1A";
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct TokenPair {
     pub access_token: String,
+    /// Opaque, single-use, and revocable. Exchanging it invalidates it.
     pub refresh_token: String,
+    #[schema(example = "bearer")]
     pub token_type: &'static str,
 }
 

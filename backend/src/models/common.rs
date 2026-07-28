@@ -1,15 +1,21 @@
 use serde::{Deserialize, Serialize};
+use utoipa::{IntoParams, ToSchema};
 use validator::Validate;
 
 /// Offset pagination. `count` in the response is the total matching rows, not the page size,
 /// so a client can render "showing 1-20 of 340" without a second request.
-#[derive(Debug, Deserialize, Validate)]
+#[derive(Debug, Deserialize, Validate, IntoParams)]
+#[into_params(parameter_in = Query)]
 pub struct Pagination {
+    /// How many rows to step over before the page begins.
     #[serde(default)]
     #[validate(range(min = 0, message = "cannot be negative"))]
+    #[param(minimum = 0, default = 0)]
     pub skip: i64,
+    /// How many rows the page holds, at most 200.
     #[serde(default = "default_limit")]
     #[validate(range(min = 1, max = 200, message = "must be between 1 and 200"))]
+    #[param(minimum = 1, maximum = 200, default = 20)]
     pub limit: i64,
 }
 
@@ -26,9 +32,12 @@ impl Default for Pagination {
     }
 }
 
-#[derive(Debug, Serialize)]
+/// OpenAPI has no generics of its own, so each concrete page is named after the type it
+/// carries when the document is generated.
+#[derive(Debug, Serialize, ToSchema)]
 pub struct Page<T> {
     pub data: Vec<T>,
+    /// Total rows matching the query, not the number returned in `data`.
     pub count: i64,
 }
 
@@ -38,8 +47,10 @@ impl<T> Page<T> {
     }
 }
 
-#[derive(Debug, Serialize)]
+/// A plain acknowledgement, for the handful of endpoints that have nothing to return.
+#[derive(Debug, Serialize, ToSchema)]
 pub struct Message {
+    #[schema(example = "item deleted")]
     pub message: String,
 }
 

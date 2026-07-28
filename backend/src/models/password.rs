@@ -2,6 +2,10 @@ use std::fmt;
 
 use secrecy::{ExposeSecret, SecretString};
 use serde::Deserialize;
+use utoipa::{
+    PartialSchema, ToSchema,
+    openapi::{ObjectBuilder, RefOr, Schema, schema::SchemaType},
+};
 use validator::{Validate, ValidationError, ValidationErrors};
 
 /// A password on its way in from a request body.
@@ -47,6 +51,24 @@ impl Validate for Password {
         Err(errors)
     }
 }
+
+/// Also hand-written, since the derive cannot see through the newtype. The generated client
+/// gets a plain string with the same bounds the server enforces, marked as a password so that
+/// documentation tooling does not echo it back.
+impl PartialSchema for Password {
+    fn schema() -> RefOr<Schema> {
+        ObjectBuilder::new()
+            .schema_type(SchemaType::Type(utoipa::openapi::Type::String))
+            .format(Some(utoipa::openapi::SchemaFormat::Custom(
+                "password".to_owned(),
+            )))
+            .min_length(Some(MIN_LENGTH))
+            .max_length(Some(MAX_LENGTH))
+            .into()
+    }
+}
+
+impl ToSchema for Password {}
 
 /// Hand-written so that no password reaches a log through a derived `Debug` on some request
 /// body that happens to contain one.

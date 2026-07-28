@@ -1,11 +1,13 @@
+pub mod docs;
 pub mod extract;
 pub mod routes;
 
 use std::time::Duration;
 
 use axum::{
-    Router,
+    Json, Router,
     http::{HeaderValue, StatusCode},
+    routing::get,
 };
 use tower::{Layer, ServiceBuilder};
 use tower_http::{
@@ -18,8 +20,15 @@ use tower_http::{
     timeout::TimeoutLayer,
     trace::TraceLayer,
 };
+use utoipa::OpenApi;
+use utoipa_axum::router::OpenApiRouter;
+use utoipa_scalar::{Scalar, Servable};
 
-use crate::{AppError, AppState};
+use crate::{AppError, AppState, api::docs::ApiDoc};
+
+/// Where the interactive documentation lives, and where the document behind it is served.
+pub const DOCS_PATH: &str = "/docs";
+pub const OPENAPI_PATH: &str = "/api/openapi.json";
 
 /// Wraps the router so that `/api/v1/users/` reaches the same handler as `/api/v1/users`.
 /// This has to sit outside the router rather than inside it, because a `Router` layer runs
@@ -47,14 +56,34 @@ pub fn build(state: AppState) -> Router {
         .layer(CompressionLayer::new())
         .layer(cors(config.cors_origins()));
 
-    Router::new()
+    let (router, mut openapi) = OpenApiRouter::with_openapi(ApiDoc::openapi())
         .merge(routes::health::router())
         .nest("/api/v1", routes::router())
+        .split_for_parts();
+
+    // The title is only known at runtime, so the document carries a neutral one until here.
+    openapi.info.title.clone_from(&config.project_name);
+
+    router
+        // Served from the finished document rather than rebuilt per request, so what the
+        // documentation shows is exactly what the router does.
+        .merge(Scalar::with_url(DOCS_PATH, openapi.clone()))
+        .route(OPENAPI_PATH, get(async move || Json(openapi.clone())))
         // Without this, an unmatched path returns a bodyless 404 while every other error is
         // problem+json, and clients need two ways to read a failure.
         .fallback(not_found)
         .layer(middleware)
         .with_state(state)
+}
+
+/// The document on its own, for the binary that writes it to a file.
+pub fn openapi() -> utoipa::openapi::OpenApi {
+    let (_, openapi) = OpenApiRouter::<AppState>::with_openapi(ApiDoc::openapi())
+        .merge(routes::health::router())
+        .nest("/api/v1", routes::router())
+        .split_for_parts();
+
+    openapi
 }
 
 async fn not_found() -> AppError {

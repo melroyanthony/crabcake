@@ -66,12 +66,19 @@ impl<T> OnUniqueViolation<T> for AppResult<T> {
     }
 }
 
-/// A problem detail as described by RFC 9457, served as `application/problem+json`.
-#[derive(Debug, Serialize)]
-struct Problem {
-    status: u16,
-    title: String,
-    detail: String,
+/// A problem detail as described by RFC 9457, served as `application/problem+json`. Public
+/// so that the OpenAPI document can describe every failure with the shape it really has.
+#[derive(Debug, Serialize, utoipa::ToSchema)]
+#[schema(title = "Problem")]
+pub struct Problem {
+    #[schema(example = 404)]
+    pub status: u16,
+    #[schema(example = "Not Found")]
+    pub title: String,
+    /// A human-readable explanation. Server faults always read "Internal server error", since
+    /// their detail belongs in the logs rather than in a response.
+    #[schema(example = "not found")]
+    pub detail: String,
 }
 
 impl IntoResponse for AppError {

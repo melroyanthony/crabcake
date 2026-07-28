@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
+use utoipa::ToSchema;
 use uuid::Uuid;
 use validator::Validate;
 
@@ -19,10 +20,12 @@ pub struct User {
     pub updated_at: OffsetDateTime,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct UserPublic {
     pub id: Uuid,
+    #[schema(example = "ada@example.com")]
     pub email: String,
+    #[schema(example = "Ada Lovelace")]
     pub full_name: Option<String>,
     pub is_active: bool,
     pub is_superuser: bool,
@@ -45,9 +48,10 @@ impl From<User> for UserPublic {
 
 /// Open registration. Note the absence of `is_active` and `is_superuser`: a self-registered
 /// account cannot promote itself, however the request body is shaped.
-#[derive(Debug, Deserialize, Validate)]
+#[derive(Debug, Deserialize, Validate, ToSchema)]
 pub struct UserRegister {
     #[validate(email(message = "must be a valid email address"))]
+    #[schema(format = Email, example = "ada@example.com")]
     pub email: String,
     #[validate(nested)]
     pub password: Password,
@@ -56,9 +60,10 @@ pub struct UserRegister {
 }
 
 /// Creation by a superuser, which may set any field.
-#[derive(Debug, Deserialize, Validate)]
+#[derive(Debug, Deserialize, Validate, ToSchema)]
 pub struct UserCreate {
     #[validate(email(message = "must be a valid email address"))]
+    #[schema(format = Email, example = "ada@example.com")]
     pub email: String,
     #[validate(nested)]
     pub password: Password,
@@ -72,18 +77,20 @@ pub struct UserCreate {
 
 /// What a user may change about themselves. Notably not their password, which goes through
 /// [`PasswordUpdate`] so that the current one has to be proved.
-#[derive(Debug, Deserialize, Validate)]
+#[derive(Debug, Deserialize, Validate, ToSchema)]
 pub struct UserUpdateMe {
     #[validate(email(message = "must be a valid email address"))]
+    #[schema(format = Email, example = "ada@example.com")]
     pub email: Option<String>,
     #[validate(length(max = 255, message = "must be at most 255 characters"))]
     pub full_name: Option<String>,
 }
 
 /// What a superuser may change about anyone, including active status and privileges.
-#[derive(Debug, Deserialize, Validate)]
+#[derive(Debug, Deserialize, Validate, ToSchema)]
 pub struct UserUpdate {
     #[validate(email(message = "must be a valid email address"))]
+    #[schema(format = Email, example = "ada@example.com")]
     pub email: Option<String>,
     #[validate(nested)]
     pub password: Option<Password>,
@@ -93,7 +100,7 @@ pub struct UserUpdate {
     pub is_superuser: Option<bool>,
 }
 
-#[derive(Debug, Deserialize, Validate)]
+#[derive(Debug, Deserialize, Validate, ToSchema)]
 pub struct PasswordUpdate {
     pub current_password: Password,
     #[validate(nested)]

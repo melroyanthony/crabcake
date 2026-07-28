@@ -18,6 +18,9 @@ yarn-error.log*
 .env.local
 .env.*.local
 
+### Generated from the routers by `just spec`, in seconds and without a database
+openapi.json
+
 ### Test artifacts
 playwright-report/
 test-results/

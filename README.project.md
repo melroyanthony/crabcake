@@ -62,6 +62,25 @@ Two habits worth forming:
 
 More in [docs/development.md](docs/development.md).
 
+## 📖 The API Documentation
+
+The OpenAPI document is built from the routers themselves, so a route cannot be added to the
+API and forgotten in the docs.
+
+| What                        | Where                                    |
+| --------------------------- | ---------------------------------------- |
+| 📖 Interactive reference     | http://localhost:8000/docs               |
+| 📄 The document             | http://localhost:8000/api/openapi.json   |
+
+To write it to a file without a database or a running server:
+
+```bash
+just spec    # writes openapi.json
+```
+
+That is what `just client` runs first, which is why regenerating the frontend client works
+from a plain checkout.
+
 ## ✅ Testing
 
 ```bash
