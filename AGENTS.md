@@ -42,7 +42,9 @@ template that still generates but emits broken projects, so they are easy to mis
    leave it alone and it is copied byte for byte.
 2. **Never add hook scripts to `ignore`.** `cargo-generate` strips them from the output
    itself; ignoring them deletes them before they can run.
-3. **`ignore` does not support wildcards.** Only exact file and directory names.
+3. **`ignore` does not support wildcards.** Only exact file and directory names. Keep
+   `backend/target`, `frontend/node_modules` and `frontend/.next` on the list so a dirty
+   working tree cannot bloat or break generation.
 4. **Rhai's `trim()` mutates in place and returns unit.** `system::command(...)` already
    returns trimmed stdout, so never chain `.trim()` onto it — the value silently becomes unit
    and `variable::set` fails.

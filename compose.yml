@@ -1,0 +1,177 @@
+# Production-oriented base. Local ports, Mailcatcher and the Traefik-public
+# network override live in compose.override.yml (loaded automatically). Deploy
+# with Traefik via: docker compose -f compose.yml -f compose.traefik.yml up -d
+services:
+  db:
+    image: postgres:18
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    # Postgres 18+ stores major-version-specific data under this mount point.
+    volumes:
+      - app-db-data:/var/lib/postgresql
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      POSTGRES_DB: ${POSTGRES_DB:?}
+    networks:
+      - default
+      - traefik-public
+
+  backend:
+    image: ${DOCKER_IMAGE_BACKEND:?}:${TAG:-latest}
+    restart: always
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      # Compose DNS for the database; the .env value points at localhost for
+      # host-run `just dev-backend`.
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      PROJECT_NAME: ${PROJECT_NAME}
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - default
+      - traefik-public
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=traefik-public
+      - traefik.constraint-label=traefik-public
+      - traefik.http.services.${STACK_NAME:?}-backend.loadbalancer.server.port=8000
+      - traefik.http.routers.${STACK_NAME}-backend-http.rule=Host(`api.${DOMAIN:?}`)
+      - traefik.http.routers.${STACK_NAME}-backend-http.entrypoints=http
+      - traefik.http.routers.${STACK_NAME}-backend-http.middlewares=https-redirect
+      - traefik.http.routers.${STACK_NAME}-backend-https.rule=Host(`api.${DOMAIN}`)
+      - traefik.http.routers.${STACK_NAME}-backend-https.entrypoints=https
+      - traefik.http.routers.${STACK_NAME}-backend-https.tls=true
+      - traefik.http.routers.${STACK_NAME}-backend-https.tls.certresolver=le
+
+  worker:
+    image: ${DOCKER_IMAGE_BACKEND:?}:${TAG:-latest}
+    restart: always
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: ["worker"]
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      PROJECT_NAME: ${PROJECT_NAME}
+      # The worker is not an HTTP service; give traces a distinct name when OTel is on.
+      OTEL_SERVICE_NAME: ${STACK_NAME:?}-worker
+    networks:
+      - default
+
+  frontend:
+    image: ${DOCKER_IMAGE_FRONTEND:?}:${TAG:-latest}
+    restart: always
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    depends_on:
+      backend:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      API_URL: http://backend:8000
+      NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-${PROJECT_NAME}}
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - default
+      - traefik-public
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=traefik-public
+      - traefik.constraint-label=traefik-public
+      - traefik.http.services.${STACK_NAME:?}-frontend.loadbalancer.server.port=3000
+      - traefik.http.routers.${STACK_NAME}-frontend-http.rule=Host(`dashboard.${DOMAIN:?}`)
+      - traefik.http.routers.${STACK_NAME}-frontend-http.entrypoints=http
+      - traefik.http.routers.${STACK_NAME}-frontend-http.middlewares=https-redirect
+      - traefik.http.routers.${STACK_NAME}-frontend-https.rule=Host(`dashboard.${DOMAIN}`)
+      - traefik.http.routers.${STACK_NAME}-frontend-https.entrypoints=https
+      - traefik.http.routers.${STACK_NAME}-frontend-https.tls=true
+      - traefik.http.routers.${STACK_NAME}-frontend-https.tls.certresolver=le
+
+{% if enable_s3 %}
+  minio:
+    image: minio/minio:latest
+    restart: always
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:?}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY:?}
+    volumes:
+      - minio-data:/data
+    networks:
+      - default
+
+  # Creates the bucket once MinIO accepts credentials. Retries on its own so
+  # we do not need a healthcheck binary inside the MinIO server image.
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      - minio
+    restart: "no"
+    environment:
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?}
+      S3_BUCKET: ${S3_BUCKET:?}
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        until mc alias set local http://minio:9000 "$$S3_ACCESS_KEY_ID" "$$S3_SECRET_ACCESS_KEY"; do
+          sleep 1
+        done
+        mc mb --ignore-existing "local/$$S3_BUCKET"
+{% endif %}{% if enable_otel %}
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.120.0
+    restart: always
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./docker/otel-collector.yaml:/etc/otelcol/config.yaml:ro
+    networks:
+      - default
+{% endif %}
+
+volumes:
+  app-db-data:
+{% if enable_s3 %}
+  minio-data:
+{% endif %}
+
+networks:
+  traefik-public:
+    # Created by compose.traefik.yml (or made local by compose.override.yml).
+    external: true

@@ -97,12 +97,11 @@ Crabcake asks you for these when generating. Every one of them can also be chang
 | `sentry_dsn`               | empty               | Sentry DSN, leave empty to disable                   |
 | `license`                  | `MIT`               | License for your project                             |
 | `enable_traefik`           | yes                 | Traefik reverse proxy config for production          |
-| `enable_jobs`              | yes                 | Background job worker                                |
 | `enable_otel`              | yes                 | OpenTelemetry tracing and Prometheus metrics         |
-| `enable_s3`                | yes                 | S3-compatible file uploads                           |
+| `enable_s3`                | yes                 | S3-compatible file uploads (MinIO locally)           |
 
-Answering **no** to any of the last four leaves those files out of your project entirely, so
-you don't carry code you never asked for.
+Answering **no** trims Compose services and `.env` entries. The Rust modules stay in the tree
+and stay quiet when their settings are absent.
 
 ### 🔑 Secret Keys
 

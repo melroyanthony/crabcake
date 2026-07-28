@@ -1,0 +1,80 @@
+# Local development defaults. Docker Compose loads this file automatically
+# alongside compose.yml. Production deploys omit it and use compose.traefik.yml.
+services:
+  db:
+    restart: "no"
+    ports:
+      - "5432:5432"
+    networks:
+      - default
+
+  backend:
+    restart: "no"
+    ports:
+      - "8000:8000"
+    # Presigned upload URLs use S3_ENDPOINT from .env (http://localhost:9000).
+    # Remapping localhost to the host gateway lets the API container reach the
+    # published MinIO port with the same hostname the browser uses.
+    extra_hosts:
+      - "localhost:host-gateway"
+    depends_on:
+      db:
+        condition: service_healthy
+{% if enable_s3 %}
+      minio-init:
+        condition: service_completed_successfully
+{% endif %}
+    networks:
+      - default
+
+  worker:
+    restart: "no"
+    extra_hosts:
+      - "localhost:host-gateway"
+    depends_on:
+      db:
+        condition: service_healthy
+{% if enable_s3 %}
+      minio-init:
+        condition: service_completed_successfully
+{% endif %}
+    networks:
+      - default
+
+  frontend:
+    restart: "no"
+    ports:
+      - "3000:3000"
+    networks:
+      - default
+
+  mailcatcher:
+    image: schickling/mailcatcher
+    restart: "no"
+    ports:
+      - "1080:1080"
+      - "1025:1025"
+    networks:
+      - default
+
+{% if enable_s3 %}
+  minio:
+    restart: "no"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+
+  minio-init:
+    networks:
+      - default
+{% endif %}{% if enable_otel %}
+  otel-collector:
+    restart: "no"
+    ports:
+      - "4317:4317"
+{% endif %}
+
+networks:
+  traefik-public:
+    # Local stacks do not need a shared Traefik network.
+    external: false

@@ -11,8 +11,8 @@ A full-stack application with a Rust API and a TypeScript frontend, generated fr
   styled with [Tailwind CSS](https://tailwindcss.com) and [shadcn/ui](https://ui.shadcn.com)
 - 🤖 A frontend API client generated from the backend's OpenAPI spec
 - 🔑 JWT authentication with Argon2id password hashing and httpOnly cookies
-{% if enable_jobs %}- ⚙️ Background jobs on a Postgres-backed [apalis](https://apalis.dev) queue
-{% endif %}{% if enable_otel %}- 📈 OpenTelemetry tracing and Prometheus metrics
+- ⚙️ Background jobs on a Postgres-backed [apalis](https://apalis.dev) queue
+{% if enable_otel %}- 📈 OpenTelemetry tracing and Prometheus metrics
 {% endif %}{% if enable_s3 %}- 📦 S3-compatible file uploads
 {% endif %}- 🐋 Docker Compose for development and production
 

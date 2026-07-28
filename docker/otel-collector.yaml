@@ -1,0 +1,24 @@
+# Minimal collector for local and Compose use. Receives OTLP from the API and
+# worker, and prints spans. Swap the exporter for your backend of choice in
+# production (Jaeger, Grafana Tempo, Honeycomb, …).
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+exporters:
+  debug:
+    verbosity: basic
+
+processors:
+  batch: {}
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [debug]

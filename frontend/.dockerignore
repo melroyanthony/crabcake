@@ -1,0 +1,17 @@
+node_modules
+.next
+out
+dist
+coverage
+playwright-report
+test-results
+blob-report
+**/*.md
+.env
+.env.*
+!.env.local.example
+.git
+.gitignore
+Dockerfile
+.dockerignore
+src/client/README.md
