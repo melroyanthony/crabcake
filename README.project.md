@@ -81,6 +81,22 @@ just spec    # writes openapi.json
 That is what `just client` runs first, which is why regenerating the frontend client works
 from a plain checkout.
 
+## 📬 Email and Background Jobs
+
+Email goes out through a Postgres-backed queue rather than during the request, so a mail server
+having a bad minute delays a message instead of failing somebody's password reset. Failed sends
+are retried.
+
+The queue is drained by a separate `worker` process, which Compose runs for you. Locally every
+message is caught by Mailcatcher instead of being delivered, so nothing escapes:
+
+```bash
+just mail    # opens http://localhost:1080
+```
+
+Email is optional. With no `SMTP_HOST` set, messages are logged instead of sent, so a fresh
+checkout runs before you have thought about mail at all.
+
 ## ✅ Testing
 
 ```bash
@@ -88,8 +104,9 @@ just test    # backend fmt, clippy and tests, then frontend lint, types and buil
 just e2e     # Playwright against the running stack
 ```
 
-Backend tests get their own isolated database each, so they run in parallel without
-interfering with one another.
+Backend tests get their own isolated database each, created and dropped around the test, so
+they run in parallel without interfering with one another. That does mean the database has to be
+up: run `just up` first, or expect `DATABASE_URL must be set`.
 
 ## 🚢 Deployment
 

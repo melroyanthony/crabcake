@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 use crate::{
     AppError, AppResult, AppState,
-    auth::{jwt, password, refresh},
+    auth::{jwt, password, token},
     models::User,
     repo,
 };
@@ -47,7 +47,7 @@ pub async fn login(state: &AppState, email: &str, plaintext: &str) -> AppResult<
 /// means a stolen token is good for at most one refresh, and the theft shows up as the
 /// legitimate client being signed out.
 pub async fn refresh(state: &AppState, plaintext: &str) -> AppResult<TokenPair> {
-    let digest = refresh::digest(plaintext);
+    let digest = token::digest(plaintext);
 
     let stored = repo::refresh_tokens::find_active(state.db(), &digest)
         .await?
@@ -69,7 +69,7 @@ pub async fn refresh(state: &AppState, plaintext: &str) -> AppResult<TokenPair> 
 /// Ends a single session. Unknown tokens succeed quietly: signing out should never fail, and
 /// reporting which tokens exist would leak information.
 pub async fn logout(state: &AppState, plaintext: &str) -> AppResult<()> {
-    repo::refresh_tokens::revoke_by_digest(state.db(), &refresh::digest(plaintext)).await
+    repo::refresh_tokens::revoke_by_digest(state.db(), &token::digest(plaintext)).await
 }
 
 /// Ends every session a user has.
@@ -80,7 +80,7 @@ pub async fn logout_everywhere(state: &AppState, user_id: Uuid) -> AppResult<u64
 async fn issue_pair(state: &AppState, user: &User) -> AppResult<TokenPair> {
     let access_token = jwt::issue_access_token(state.config(), user.id)?;
 
-    let token = refresh::generate();
+    let token = token::generate();
     let expires_at =
         OffsetDateTime::now_utc() + Duration::days(state.config().refresh_token_expire_days);
 

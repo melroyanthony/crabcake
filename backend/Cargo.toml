@@ -19,6 +19,12 @@ path = "src/main.rs"
 name = "openapi"
 path = "src/bin/openapi.rs"
 
+# Drains the job queue. Runs as its own process so that a slow mail server cannot make the
+# API slow, and so workers can be scaled separately from it.
+[[bin]]
+name = "worker"
+path = "src/bin/worker.rs"
+
 [dependencies]
 axum = { version = "0.8", features = ["macros"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "signal"] }
@@ -33,7 +39,9 @@ tower-http = { version = "0.7", features = [
     "timeout",
     "trace",
 ] }
-sqlx = { version = "0.9", features = [
+# Held at 0.8 to match apalis-sql, so the whole tree shares one sqlx and one connection pool
+# rather than compiling two copies and running two.
+sqlx = { version = "0.8", features = [
     "macros",
     "migrate",
     "postgres",
@@ -52,6 +60,26 @@ jsonwebtoken = { version = "11", default-features = false, features = ["rust_cry
 sha2 = "0.11"
 base64 = "0.23"
 secrecy = { version = "0.10", features = ["serde"] }
+# rustls with the ring provider and bundled roots, so the image needs no C toolchain and no
+# system certificate store.
+lettre = { version = "0.11.22", default-features = false, features = [
+    "builder",
+    "pool",
+    "ring",
+    "smtp-transport",
+    "tokio1-rustls",
+    "webpki-roots",
+] }
+minijinja = "2"
+# Pinned to the stable line rather than the long-running 1.0 release candidate, so that no
+# generated project depends on a pre-release.
+apalis = { version = "0.7", default-features = false, features = ["retry", "tracing"] }
+apalis-sql = { version = "0.7", default-features = false, features = [
+    # Creates the queue's own tables on startup, so a fresh database needs no extra step.
+    "migrate",
+    "postgres",
+    "tokio-comp",
+] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 uuid = { version = "1", features = ["serde", "v4"] }

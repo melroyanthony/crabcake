@@ -11,6 +11,7 @@ use utoipa::{
     tags(
         (name = "health", description = "Liveness and readiness probes."),
         (name = "login", description = "Signing in, refreshing, and signing out."),
+        (name = "password", description = "Resetting a forgotten password by email."),
         (name = "users", description = "Accounts, both your own and, for superusers, everyone else's."),
         (name = "items", description = "The example domain. Replace it with yours."),
     ),

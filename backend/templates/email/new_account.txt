@@ -1,0 +1,8 @@
+Your account is ready
+
+An account has been created for {{ email }}. Sign in below and change your password once you
+are in.
+
+{{ login_url }}
+
+-- {{ project_name }}

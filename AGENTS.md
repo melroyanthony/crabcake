@@ -92,6 +92,13 @@ real problem, not by being interesting.
   for ecosystem support, including utoipa.
 - **Linting and formatting TypeScript is Biome**, not ESLint, because `typescript-eslint`
   does not support TypeScript 7.
+- **The job queue is `apalis` on its stable 0.7 line**, not the 1.0 release candidate, so that
+  no generated project depends on a pre-release.
+- **`sqlx` is held at 0.8 to match `apalis-sql`.** Moving to 0.9 splits the tree: two copies of
+  `sqlx` compile and the queue needs a second connection pool. If you bump one, bump both.
+  Both also register their migrations in `_sqlx_migrations`, which sqlx 0.8 cannot rename, so
+  each migrator sets `ignore_missing`. Keep app migrations numbered from 1; the queue's are
+  timestamps, so the two cannot collide.
 
 Considered and deliberately not used: `tonic` and `prost` (no gRPC here), `tokio-tungstenite`
 (axum has WebSockets built in), `moka` (no measured hot path to cache), `tokio-console`

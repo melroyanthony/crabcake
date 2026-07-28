@@ -14,9 +14,12 @@ npm-debug.log*
 yarn-error.log*
 
 ### Environment
+# A generated project's .env holds its real secrets. The committed file is .env.example, which
+# is renamed to .env at generation time and filled in with freshly generated values.
+.env
+.env.*
+!.env.example
 *.local
-.env.local
-.env.*.local
 
 ### Generated from the routers by `just spec`, in seconds and without a database
 openapi.json

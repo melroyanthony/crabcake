@@ -51,6 +51,26 @@ pub struct Config {
     pub first_superuser: String,
     pub first_superuser_password: SecretString,
 
+    /// Empty means email is switched off: the worker logs what it would have sent instead of
+    /// failing, so a fresh checkout runs without an SMTP server.
+    #[serde(default)]
+    pub smtp_host: String,
+    #[serde(default = "defaults::smtp_port")]
+    pub smtp_port: u16,
+    #[serde(default)]
+    pub smtp_user: String,
+    #[serde(default = "defaults::empty_secret")]
+    pub smtp_password: SecretString,
+    /// Off locally, where Mailcatcher speaks plain SMTP; on everywhere real.
+    #[serde(default)]
+    pub smtp_tls: bool,
+    #[serde(default)]
+    pub emails_from_name: String,
+    #[serde(default)]
+    pub emails_from_email: String,
+    #[serde(default = "defaults::password_reset_token_expire_hours")]
+    pub password_reset_token_expire_hours: i64,
+
     #[serde(default = "defaults::request_timeout_seconds")]
     pub request_timeout_seconds: u64,
     #[serde(default = "defaults::body_limit_bytes")]
@@ -79,6 +99,22 @@ impl Config {
             .collect()
     }
 
+    /// Whether there is anywhere to send mail. Checked rather than assumed, because a template
+    /// that panics on startup without an SMTP server would be tiresome to try out.
+    pub fn emails_enabled(&self) -> bool {
+        !self.smtp_host.is_empty() && !self.emails_from_email.is_empty()
+    }
+
+    /// The name mail appears to come from, falling back to the project's own name so that a
+    /// half-filled configuration still sends something sensible.
+    pub fn emails_from_name(&self) -> &str {
+        if self.emails_from_name.is_empty() {
+            &self.project_name
+        } else {
+            &self.emails_from_name
+        }
+    }
+
     fn guard_against_placeholder_secrets(&self) -> Result<(), ConfigError> {
         if self.environment.is_local() {
             return Ok(());
@@ -101,10 +137,12 @@ impl Config {
     }
 }
 
-#[cfg(test)]
 impl Config {
-    /// A valid configuration for tests to start from and then adjust. Living here rather than
-    /// in each test module keeps one definition to update when a field is added.
+    /// A valid configuration for tests to start from and then adjust, as
+    /// `Config { project_name: "…".to_owned(), ..Config::for_tests() }`.
+    ///
+    /// Public, and not behind `cfg(test)`, because integration tests compile against this crate
+    /// as an ordinary dependency and would otherwise each have to spell out every field.
     pub fn for_tests() -> Self {
         Self {
             environment: Environment::Local,
@@ -118,6 +156,14 @@ impl Config {
             refresh_token_expire_days: 30,
             first_superuser: "admin@example.com".to_owned(),
             first_superuser_password: SecretString::from("hunter2"),
+            smtp_host: String::new(),
+            smtp_port: defaults::smtp_port(),
+            smtp_user: String::new(),
+            smtp_password: defaults::empty_secret(),
+            smtp_tls: false,
+            emails_from_name: String::new(),
+            emails_from_email: String::new(),
+            password_reset_token_expire_hours: 1,
             request_timeout_seconds: 30,
             body_limit_bytes: 1024,
         }
@@ -140,7 +186,22 @@ pub enum ConfigError {
 mod defaults {
     use std::net::SocketAddr;
 
+    use secrecy::SecretString;
+
     use super::Environment;
+
+    pub fn empty_secret() -> SecretString {
+        SecretString::from("")
+    }
+
+    /// Mailcatcher's port, since that is what the local stack runs.
+    pub fn smtp_port() -> u16 {
+        1025
+    }
+
+    pub fn password_reset_token_expire_hours() -> i64 {
+        1
+    }
 
     pub fn environment() -> Environment {
         Environment::Local

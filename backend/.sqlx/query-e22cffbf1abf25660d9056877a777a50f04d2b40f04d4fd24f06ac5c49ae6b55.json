@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "update password_reset_tokens set expires_at = now() - interval '1 minute'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "e22cffbf1abf25660d9056877a777a50f04d2b40f04d4fd24f06ac5c49ae6b55"
+}

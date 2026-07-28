@@ -53,6 +53,10 @@ spec:
 docs:
     open http://localhost:8000/docs
 
+# Open the local inbox, where every email the stack sends lands
+mail:
+    open http://localhost:1080
+
 # Regenerate the frontend API client from the backend spec
 client: spec
     cd frontend && npm run generate-client
@@ -60,7 +64,7 @@ client: spec
 # Run every check the CI runs
 test: test-backend test-frontend
 
-# Backend formatting, lints and tests
+# Backend formatting, lints and tests. Needs the database up: each test makes its own
 test-backend:
     cd backend && cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test
 

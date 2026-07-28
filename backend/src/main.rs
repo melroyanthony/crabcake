@@ -1,5 +1,5 @@
 use anyhow::Context;
-use app::{AppState, Config, api, bootstrap, db, telemetry};
+use app::{AppState, Config, api, bootstrap, db, jobs, telemetry};
 use axum::{ServiceExt, extract::Request};
 use tokio::{net::TcpListener, signal};
 
@@ -12,10 +12,12 @@ async fn main() -> anyhow::Result<()> {
 
     let pool = db::connect(&config).await?;
     db::migrate(&pool).await?;
+    jobs::setup(&pool).await?;
     bootstrap::ensure_first_superuser(&pool, &config).await?;
 
     let address = config.bind_address;
-    let state = AppState::new(config, pool);
+    let emails = jobs::queue(pool.clone());
+    let state = AppState::new(config, pool, emails);
     let app = api::serve(state);
 
     let listener = TcpListener::bind(address)
