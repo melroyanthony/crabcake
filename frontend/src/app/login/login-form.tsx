@@ -1,11 +1,23 @@
 "use client";
 
+import { zodResolver } from "@hookform/resolvers/zod";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { type FormEvent, useState } from "react";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { emailSchema, passwordSchema } from "@/lib/schemas";
+
+const schema = z.object({
+  email: emailSchema,
+  password: passwordSchema,
+});
+
+type Values = z.infer<typeof schema>;
 
 type Props = {
   next: string;
@@ -14,30 +26,28 @@ type Props = {
 export function LoginForm({ next }: Props) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<Values>({
+    resolver: zodResolver(schema),
+  });
 
-  async function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function onSubmit(values: Values) {
     setError(null);
-    setPending(true);
 
-    const form = new FormData(event.currentTarget);
     const response = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        email: form.get("email"),
-        password: form.get("password"),
-      }),
+      body: JSON.stringify(values),
     });
-
-    setPending(false);
 
     if (!response.ok) {
       const problem = (await response.json().catch(() => null)) as {
         detail?: string;
       } | null;
-      setError(problem?.detail ?? "could not sign in");
+      setError(problem?.detail ?? "Could not sign in");
       return;
     }
 
@@ -46,31 +56,54 @@ export function LoginForm({ next }: Props) {
   }
 
   return (
-    <form className="space-y-4" onSubmit={onSubmit}>
+    <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
         <Input
           id="email"
-          name="email"
           type="email"
           autoComplete="username"
-          required
+          aria-invalid={Boolean(errors.email)}
+          {...register("email")}
         />
+        {errors.email ? (
+          <p className="text-sm text-destructive">{errors.email.message}</p>
+        ) : null}
       </div>
       <div className="space-y-2">
-        <Label htmlFor="password">Password</Label>
+        <div className="flex items-center justify-between gap-2">
+          <Label htmlFor="password">Password</Label>
+          <Link
+            href="/recover-password"
+            className="text-xs text-muted-foreground underline-offset-4 hover:underline"
+          >
+            Forgot password?
+          </Link>
+        </div>
         <Input
           id="password"
-          name="password"
           type="password"
           autoComplete="current-password"
-          required
+          aria-invalid={Boolean(errors.password)}
+          {...register("password")}
         />
+        {errors.password ? (
+          <p className="text-sm text-destructive">{errors.password.message}</p>
+        ) : null}
       </div>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
-      <Button type="submit" className="w-full" disabled={pending}>
-        {pending ? "Signing in…" : "Sign in"}
+      <Button type="submit" className="w-full" disabled={isSubmitting}>
+        {isSubmitting ? "Signing in…" : "Sign in"}
       </Button>
+      <p className="text-center text-sm text-muted-foreground">
+        No account?{" "}
+        <Link
+          href="/signup"
+          className="font-medium text-foreground underline-offset-4 hover:underline"
+        >
+          Sign up
+        </Link>
+      </p>
     </form>
   );
 }

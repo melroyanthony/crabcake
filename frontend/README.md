@@ -45,22 +45,35 @@ never appear in JavaScript.
 `src/proxy.ts` redirects unauthenticated visits to `/login` for dashboard-style
 routes. Set `API_URL` (see `.env.local.example`) so the BFF can reach the API.
 
+## Pages
+
+| Path | Purpose |
+| --- | --- |
+| `/login`, `/signup` | Auth forms (login goes through the BFF) |
+| `/recover-password`, `/reset-password` | Password recovery |
+| `/dashboard` | Signed-in home |
+| `/items` | Item CRUD table |
+| `/settings` | Profile, password, sign out everywhere |
+| `/admin` | User admin (superusers only) |
+
 ## Layout
 
 | Path | Purpose |
 | --- | --- |
 | `src/app/` | Routes and layouts |
+| `src/app/(app)/` | Signed-in shell (nav + logout) |
 | `src/app/api/auth/` | BFF auth route handlers |
 | `src/app/api/v1/` | Same-origin proxy onto the Axum API |
 | `src/components/ui/` | shadcn/ui primitives — edit freely |
 | `src/components/` | App components built on top of those |
 | `src/lib/auth/` | Cookie helpers and server-side API calls |
 | `src/lib/api.ts` | Generated client, pointed at the same-origin BFF |
+| `src/lib/queries.ts` | Friendly aliases for mangled OpenAPI operation ids |
 | `src/client/` | Generated OpenAPI client — never hand-edit |
 
-The client is built by hey-api with TanStack Query options and Zod schemas.
-Import query helpers from `@/client/@tanstack/react-query.gen`, for example
-`readMeOptions()` or `listOptions()`.
+Prefer `@/lib/queries` in UI code (`itemsListOptions`, `createUserMutation`, …)
+over the numbered hey-api names. Forms use react-hook-form + Zod; success and
+failure feedback goes through Sonner toasts.
 
 Add more UI with:
 

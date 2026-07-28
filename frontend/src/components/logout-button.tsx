@@ -5,7 +5,11 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 
-export function LogoutButton() {
+type Props = {
+  variant?: "secondary" | "ghost" | "outline";
+};
+
+export function LogoutButton({ variant = "secondary" }: Props) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
 
@@ -17,7 +21,7 @@ export function LogoutButton() {
   }
 
   return (
-    <Button variant="secondary" disabled={pending} onClick={logout}>
+    <Button variant={variant} disabled={pending} onClick={logout}>
       {pending ? "Signing out…" : "Sign out"}
     </Button>
   );

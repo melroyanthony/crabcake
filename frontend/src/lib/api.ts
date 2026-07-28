@@ -19,18 +19,9 @@ export type {
   PageItem,
   PageUserPublic,
   Problem,
+  UserCreate,
   UserPublic,
   UserRegister,
+  UserUpdate,
   UserUpdateMe,
-} from "@/client";
-export {
-  create,
-  delete_,
-  list,
-  read,
-  readMe,
-  signup,
-  update,
-  updateMe,
-  updateMyPassword,
 } from "@/client";

@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -7,24 +9,29 @@ export default function Home() {
       <div className="space-y-3">
         <p className="font-mono text-sm text-muted-foreground">Crabcake</p>
         <h1 className="text-4xl font-semibold tracking-tight text-balance">
-          Your API is ready. The dashboard comes next.
+          Your full-stack app, ready to customize.
         </h1>
         <p className="max-w-xl text-lg text-muted-foreground text-pretty">
-          This frontend talks to the Axum API. Auth, the generated client and
-          the pages land in the milestones that follow; for now the stack builds
-          and the UI primitives are in place.
+          Sign in to manage items and settings. The API docs stay at the Axum
+          origin for exploring the OpenAPI surface directly.
         </p>
       </div>
 
       <div className="flex flex-wrap gap-3">
-        <a className={cn(buttonVariants())} href="http://localhost:8000/docs">
-          Open API docs
-        </a>
-        <a
+        <Link className={cn(buttonVariants())} href="/login">
+          Sign in
+        </Link>
+        <Link
           className={cn(buttonVariants({ variant: "outline" }))}
-          href="http://localhost:8000/health"
+          href="/signup"
         >
-          Health check
+          Create account
+        </Link>
+        <a
+          className={cn(buttonVariants({ variant: "ghost" }))}
+          href="http://localhost:8000/docs"
+        >
+          API docs
         </a>
       </div>
     </main>
