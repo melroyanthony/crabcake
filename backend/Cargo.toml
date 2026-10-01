@@ -41,7 +41,7 @@ tower-http = { version = "0.7", features = [
 ] }
 # Held at 0.8 to match apalis-sql, so the whole tree shares one sqlx and one connection pool
 # rather than compiling two copies and running two.
-sqlx = { version = "0.8", features = [
+sqlx = { version = "0.9", features = [
     "macros",
     "migrate",
     "postgres",
@@ -53,7 +53,7 @@ sqlx = { version = "0.8", features = [
 argon2 = { version = "0.5", features = ["std"] }
 # Pulled in explicitly to switch on getrandom, which is what makes SaltString::generate and
 # OsRng available through argon2's re-export.
-password-hash = { version = "0.5", features = ["getrandom"] }
+password-hash = { version = "0.6", features = ["getrandom"] }
 # jsonwebtoken 11 refuses to pick a crypto backend for you. rust_crypto keeps the build pure
 # Rust, with no C toolchain needed for the Docker image.
 jsonwebtoken = { version = "11", default-features = false, features = ["rust_crypto"] }
@@ -103,22 +103,22 @@ aws-smithy-http-client = { version = "1", default-features = false, features = [
     "rustls-ring",
 ] }
 axum-prometheus = "0.10"
-opentelemetry = "0.32"
-opentelemetry_sdk = { version = "0.32", features = ["rt-tokio"] }
+opentelemetry = "0.33"
+opentelemetry_sdk = { version = "0.33", features = ["rt-tokio"] }
 # gRPC to a collector on 4317, rather than the HTTP exporter: it is what every collector
 # accepts by default, and tonic is already in the tree through the SDK's dependencies.
-opentelemetry-otlp = { version = "0.32", default-features = false, features = [
+opentelemetry-otlp = { version = "0.33", default-features = false, features = [
     "grpc-tonic",
     "trace",
 ] }
-tracing-opentelemetry = "0.33"
+tracing-opentelemetry = "0.34"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 uuid = { version = "1", features = ["serde", "v4"] }
 validator = { version = "0.21", features = ["derive"] }
-utoipa = { version = "5", features = ["axum_extras", "time", "uuid"] }
-utoipa-axum = "0.2"
-utoipa-scalar = { version = "0.3", features = ["axum"] }
+utoipa = { version = "6", features = ["axum_extras", "time", "uuid"] }
+utoipa-axum = "0.3"
+utoipa-scalar = { version = "0.4", features = ["axum"] }
 time = { version = "0.3", features = ["serde"] }
 figment = { version = "0.10", features = ["env"] }
 anyhow = "1"
